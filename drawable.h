@@ -8,7 +8,8 @@
 class Drawable
 {
 public:
-    Drawable();
+    Drawable(std::string newName = "");
+    std::string name;
     static const glm::vec3 whiteColor;
     static const glm::vec3 blackColor ;
 public:
@@ -26,7 +27,7 @@ class Sphere : public Drawable
 {
 
 public:
-    Sphere(float radius);
+    Sphere(float radius, std::string newName = "");
     ~Sphere();
 
     virtual bool hasIntercepted(glm::vec3 ray, glm::vec3 origin, glm::vec3 & touchPoint) const override;
@@ -39,7 +40,7 @@ public:
 class Plane : public Drawable
 {
 public:
-    Plane();
+    Plane(std::string newName = "");
     ~Plane();
 
     virtual bool hasIntercepted(glm::vec3 ray, glm::vec3 origin, glm::vec3 & touchPoint) const override;

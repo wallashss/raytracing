@@ -12,15 +12,15 @@ const glm::vec3 Drawable::whiteColor = glm::vec3(1,1,1);
 
 /***            Drawable               ***/
 
-Drawable::Drawable()
+Drawable::Drawable(std::string newName)
 {
-
+    name = newName;
 }
 
 
 /***            Sphere               ***/
 
-Sphere::Sphere(float radius) : Drawable()
+Sphere::Sphere(float radius,std::string newName) : Drawable(newName)
 {
     this->radius = radius;
 }
@@ -90,7 +90,7 @@ glm::vec3 Sphere::getNormal(glm::vec3 point) const
 
 /***            Plain               ***/
 
-Plane::Plane() : Drawable()
+Plane::Plane(std::string newName) : Drawable(newName)
 {
 
 }
@@ -101,90 +101,16 @@ Plane::~Plane()
 
 bool Plane::hasIntercepted(glm::vec3 ray, glm::vec3 origin, glm::vec3 & touchPoint) const
 {
-
     glm::vec3 n = getNormal(position);
     float denom = glm::dot(n, glm::normalize(ray));
     if (denom > 1e-6) {
         glm::vec3 p0l0 = position - origin;
         float d = glm::dot(p0l0, n) / denom;
-        touchPoint = origin + (ray-origin) * d;
+        touchPoint = origin + (ray) * d;
 
         return (d >= 0);
     }
     return false;
-
-//    return glm::intersectRayTriangle(ray,origin,position,pointA,pointB,touchPoint);
-    std::swap(ray,origin);
-
-    // Line and plane intersection is given by
-    // A =  B^-1 * C
-    // where A = [t u v] ^t
-    // if t is between [0,1], so we have an intersection
-
-    double xa = origin.x;
-    double ya = origin.y;
-    double za = origin.z;
-
-    double xb = ray.x;
-    double yb = ray.y;
-    double zb = ray.z;
-
-    double x0 =  position.x;
-    double y0 =  position.y;
-    double z0 =  position.z;
-
-    double x1 =  pointA.x;
-    double y1 =  pointA.y;
-    double z1 =  pointA.z;
-
-    double x2 =  pointB.x;
-    double y2 =  pointB.y;
-    double z2 =  pointB.z;
-
-    glm::vec3 A;
-    glm::mat3 B;
-    glm::vec3 C;
-
-    B[0][0] =xa-xb;
-    B[0][1] =x1-x0;
-    B[0][2] =x2-x0;
-
-    B[1][0] =ya-yb;
-    B[1][1] =y1-y0;
-    B[1][2] =y2-y0;
-
-    B[2][0] =za-zb;
-    B[2][1] =z1-z0;
-    B[2][2] =z2-z0;
-
-    C.x = xa-x0;
-    C.y = ya-y0;
-    C.z = za-z0;
-//    B = glm::transpose(B);
-
-    glm::mat3 B_inverse = glm::inverse(B);
-    A = B_inverse * C;
-
-    float t = A[0];
-    float u = A[1];
-    float v = A[2];
-
-    touchPoint = origin + (ray-origin) * t;
-
-
-    if(((u+v) <= 1.0f) && (u >=0 && u<= 1) && (v>=0 && v<=1))
-    {
-        return true;
-    }
-    return false;
-    if(MAX_INTERSECT_DISTANCE < glm::distance(origin,touchPoint))
-    {
-        return false;
-    }
-    else
-    {
-        return true;
-    }
 }
 glm::vec3 Plane::getNormal(glm::vec3 point) const
 {

@@ -2,8 +2,10 @@
 
 #include <iostream>
 #include <cmath>
+#include <sstream>
 
-#define MAX_DIST 1000.0f
+
+#define MAX_DIST 120.0f
 
 static glm::vec3 createRay(int x, int y, int w, int h)
 {
@@ -35,7 +37,7 @@ Raytracing::Raytracing(int width, int height)
     int size =width*height;
     _buffer = new unsigned int[size];
 
-    _camera = glm::vec3(0,0,-5.0f);
+    _camera = glm::vec3(0,0,-20.0f);
     for(int i=0;i<size;i++)
     {
         _buffer[i] = 0xFF000000; // Black
@@ -64,10 +66,11 @@ glm::vec3 Raytracing::computeColor(glm::vec3 position, Drawable * drawable)
         for(Drawable * d : drawables)
         {
             glm::vec3 i;
-            if(d == drawable)
+            if(d->name == drawable->name)
             {
                 continue;
             }
+
             if(d->hasIntercepted(light.position,position,i))
             {
                 if(glm::distance(light.position,i)< glm::distance(light.position,position))
@@ -84,7 +87,8 @@ glm::vec3 Raytracing::computeColor(glm::vec3 position, Drawable * drawable)
         }
 
         glm::vec3 lightDir = glm::normalize( light.position - position);
-        glm::vec3 ambientColor = glm::vec3(0.05f,0.05f,0.05f) * light.color;
+//        glm::vec3 ambientColor = glm::vec3(0.05f,0.05f,0.05f) * light.color;
+        glm::vec3 ambientColor = glm::vec3(0.1,0.1,0.1) * light.color * drawable->color;
         glm::vec3 viewDir = _camera - position;
 
         float diff = fmax(0, glm::dot(normal,lightDir));
