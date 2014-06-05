@@ -12,7 +12,6 @@ public:
     void paintEvent(QPaintEvent *);
     ~MainWindow();
 
-
 private:
     Raytracing _raytracing;
 

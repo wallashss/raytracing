@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 
 
-
+// An abstract drawable
 class Drawable
 {
 public:
@@ -21,12 +21,12 @@ public:
 
 };
 
+// A sphere is defined by its position and its radius
 class Sphere : public Drawable
 {
 
 public:
     Sphere(float radius);
-
     ~Sphere();
 
     virtual bool hasIntercepted(glm::vec3 ray, glm::vec3 origin, glm::vec3 & touchPoint) const override;
@@ -34,8 +34,17 @@ public:
     float radius;
 };
 
-class Plain : public Drawable
+// A plane is defined by its position and 2 more points no colinears
+
+class Plane : public Drawable
 {
 public:
-    Plain();
+    Plane();
+    ~Plane();
+
+    virtual bool hasIntercepted(glm::vec3 ray, glm::vec3 origin, glm::vec3 & touchPoint) const override;
+    virtual glm::vec3 getNormal(glm::vec3 point) const override;
+    glm::vec3 pointA;
+    glm::vec3 pointB;
+
 };

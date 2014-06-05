@@ -17,9 +17,11 @@ INCLUDEPATH += glm
 SOURCES += main.cpp\
         mainwindow.cpp \
     raytracing.cpp \
-    drawable.cpp
+    drawable.cpp \
+    light.cpp
 
 HEADERS  += mainwindow.h \
     raytracing.h \
-    drawable.h
+    drawable.h \
+    light.h
 
