@@ -4,7 +4,6 @@
 #include <glm/gtx/intersect.hpp>
 
 static const double MINIMUM_INTERSECT_DISTANCE = 0.00001;
-static const double MAX_INTERSECT_DISTANCE = 0.1f;
 
 
 const glm::vec3 Drawable::blackColor = glm::vec3(0,0,0);
@@ -12,9 +11,12 @@ const glm::vec3 Drawable::whiteColor = glm::vec3(1,1,1);
 
 /***            Drawable               ***/
 
-Drawable::Drawable(std::string newName)
+Drawable::Drawable(std::string newName) :
+    name(newName),
+    type(Type::OPAQUE),
+    specularColor(glm::vec3(1,1,1))
 {
-    name = newName;
+
 }
 
 
@@ -33,10 +35,7 @@ Sphere::~Sphere()
 
 bool Sphere::hasIntercepted(glm::vec3 ray, glm::vec3 origin, glm::vec3 & touchPoint) const
 {
-    //    CVetor3D rayDirection( raio.getDirection() );
-    //    CVetor3D rayOrigin( raio.getStartPoint() );
-    //    CVetor3D sphereCenter( esfera.getCenterPosition() );
-    //    double sphereRadius = esfera.getRadius();
+
     double rayDirX = ray.x;
     double rayDirY = ray.y;
     double rayDirZ = ray.z;
@@ -88,6 +87,10 @@ glm::vec3 Sphere::getNormal(glm::vec3 point) const
     return glm::normalize(normal);
 }
 
+glm::vec3 Sphere::getDiffuseColor(glm::vec3 /*point*/) const
+{
+    return diffuseColor;
+}
 /***            Plain               ***/
 
 Plane::Plane(std::string newName) : Drawable(newName)
@@ -112,7 +115,49 @@ bool Plane::hasIntercepted(glm::vec3 ray, glm::vec3 origin, glm::vec3 & touchPoi
     }
     return false;
 }
-glm::vec3 Plane::getNormal(glm::vec3 point) const
+glm::vec3 Plane::getNormal(glm::vec3 /*point*/) const
 {
     return glm::normalize(glm::cross(pointA - position, pointB -position));
 }
+
+glm::vec3 Plane::getDiffuseColor(glm::vec3 /*point*/) const
+{
+    return diffuseColor;
+}
+
+/***            Chess               ***/
+
+Chess::Chess(std::string name) : Plane(name)
+{
+
+}
+
+glm::vec3 Chess::getDiffuseColor(glm::vec3 point) const
+{
+    int xt =(int)roundf(point.x /tileSize);
+    int yt =(int)roundf(point.z /tileSize);
+
+    bool evenX = xt % 2 == 0;
+    bool evenY = yt % 2 ==0;
+
+    if(evenX && evenY)
+    {
+        return color1;
+    }
+    else if(!evenX && evenY)
+    {
+        return color2;
+
+    }
+    else if(evenX && !evenY)
+    {
+        return color2;
+
+    }
+    else if(!evenX && !evenY)
+    {
+        return color1;
+    }
+    return diffuseColor; // Should never arrive
+}
+

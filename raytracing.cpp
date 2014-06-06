@@ -4,13 +4,17 @@
 #include <cmath>
 #include <sstream>
 
+#include <thread>
 
-#define MAX_DIST 120.0f
 
-static glm::vec3 createRay(int x, int y, int w, int h)
+#define MAX_DIST 5000.0f
+
+#include <chrono> // C++ 11
+
+static glm::vec3 createRay(float x, float y, int w, int h)
 {
     glm::vec3 pixelPos(x-w/2,h/2-y,1000);
-    return pixelPos;
+    return glm::normalize(pixelPos);
 }
 
 static inline int vectorToRgb(glm::vec3 color)
@@ -26,8 +30,9 @@ static inline int vectorToRgb(glm::vec3 color)
     rgb = r | g | b;
 
     return rgb;
-
 }
+
+
 
 Raytracing::Raytracing(int width, int height)
 {
@@ -42,8 +47,9 @@ Raytracing::Raytracing(int width, int height)
     {
         _buffer[i] = 0xFF000000; // Black
     }
-
-
+    numThreads = 1;
+    useMultisample = false;
+    defaultRecusion = 0;
 }
 
 Raytracing::~Raytracing()
@@ -54,12 +60,13 @@ Raytracing::~Raytracing()
     }
 }
 
-glm::vec3 Raytracing::computeColor(glm::vec3 position, Drawable * drawable)
+glm::vec3 Raytracing::computeColor(glm::vec3 position, glm::vec3 viewDir, Drawable * drawable)
 {
     glm::vec3 normal = drawable->getNormal(position);
-    glm::vec3 color =drawable->color;
+    glm::vec3 diffuseColor =drawable->getDiffuseColor(position);
 
     glm::vec3 outColor;
+
     for(Light light : lights)
     {
         bool isShadow = false;
@@ -87,9 +94,8 @@ glm::vec3 Raytracing::computeColor(glm::vec3 position, Drawable * drawable)
         }
 
         glm::vec3 lightDir = glm::normalize( light.position - position);
-//        glm::vec3 ambientColor = glm::vec3(0.05f,0.05f,0.05f) * light.color;
-        glm::vec3 ambientColor = glm::vec3(0.1,0.1,0.1) * light.color * drawable->color;
-        glm::vec3 viewDir = _camera - position;
+        glm::vec3 ambientColor = glm::vec3(0.1,0.1,0.1) * light.color * diffuseColor;
+//        glm::vec3 viewDir = _camera - position;
 
         float diff = fmax(0, glm::dot(normal,lightDir));
 
@@ -109,7 +115,9 @@ glm::vec3 Raytracing::computeColor(glm::vec3 position, Drawable * drawable)
                                       + linearAttenuation * lightDistance
                                       + quadraticAttenuation * lightDistance * lightDistance);
 
-        outColor += ambientColor + color*diff+ light.color*specular*attenuation;
+        outColor += ambientColor;
+        outColor += diffuseColor*diff;
+        outColor += light.color*specular*attenuation*drawable->specularColor;
 
     }
 
@@ -127,101 +135,165 @@ glm::vec3 Raytracing::computeColor(glm::vec3 position, Drawable * drawable)
 
 }
 
-void Raytracing::perform()
+glm::vec3 Raytracing::traceRay(glm::vec3 origin, glm::vec3 direction, int n, Drawable * ignoredDrawable)
 {
-    int touchs = 0;
-    std::vector<std::pair< std::pair<int,int>,glm::vec3>> zBuffer;
-    for(auto i=0;i<_width;i++)
+    glm::vec3 touchPoint;
+
+    bool hasIntecepted = false;
+    Drawable *closestDrawable;
+    glm::vec3 closestPoint;
+
+    for(auto it= drawables.begin();it!= drawables.end();++it)
     {
-        for(auto j=0;j<_height;j++)
+        Drawable * d = *it;
+
+
+        if(ignoredDrawable )
         {
-
-            glm::vec3 ray =  createRay(i,j, _width, _height);
-            ray =glm::normalize(ray);
-
-            glm::vec3 touchPoint;
-
-            bool hasIntecepted = false;
-            Drawable *closestDrawable;
-            glm::vec3 closestPoint;
-
-
-            for(auto it= drawables.begin();it!= drawables.end();++it)
+            if(d->name == ignoredDrawable->name)
             {
-                Drawable * d = *it;
+                continue;
+            }
+        }
 
-
-                if(d->hasIntercepted(ray, _camera, touchPoint))
+        if(d->hasIntercepted(direction, origin, touchPoint))
+        {
+            if(hasIntecepted)
+            {
+                double dist1 = glm::distance(closestPoint,origin);
+                double dist2 = glm::distance(touchPoint,origin);
+                if(dist1 > dist2)
                 {
-                    if(hasIntecepted)
+                    if (dist1 < MAX_DIST)
                     {
-                        float dist1 = glm::distance(closestPoint,_camera);
-                        float dist2 = glm::distance(touchPoint,_camera);
-                        if(dist1 > dist2)
-                        {
-                            if (dist1 < MAX_DIST)
-                            {
-                                closestPoint = touchPoint;
-                                closestDrawable = d;
-                            }
-
-                        }
+                        closestPoint = touchPoint;
+                        closestDrawable = d;
                     }
-                    else
-                    {
-                        float dist = glm::distance(touchPoint,_camera);
-                        if(dist<MAX_DIST)
-                        {
-                            hasIntecepted = true;
-                            closestPoint = touchPoint;
-                            closestDrawable = d;
-                        }
-
-                    }
-//                    std::cout << touchPoint.x << " " << touchPoint.y << " " << touchPoint.z << std::endl;
 
                 }
             }
-            if(hasIntecepted)
+            else
             {
-                glm::vec3 newColor = computeColor(closestPoint,closestDrawable);
-                unsigned int rgb = vectorToRgb(newColor);
-                this->setRGB(i,j,rgb);
-                touchs++;
-                zBuffer.push_back({ {i,j},closestPoint});
+                double dist = glm::distance(touchPoint,origin);
+                if(dist<MAX_DIST)
+                {
+                    hasIntecepted = true;
+                    closestPoint = touchPoint;
+                    closestDrawable = d;
+                }
             }
 
         }
     }
+    if(hasIntecepted)
+    {
 
-//    float maxDist =0;
-//    float minDist = 0xFFFFFFFF;
-//    for(auto it = points.begin();it!=points.end();++it)
-//    {
-//        std::pair< std::pair<int,int>,glm::vec3> aPair = *it;
-//        std::pair<int,int> coord = aPair.first;
-//        glm::vec3 point = aPair.second;
+        glm::vec3 newColor = computeColor(closestPoint,origin-closestPoint, closestDrawable);
+        if(closestDrawable->type ==  Drawable::Type::REFLEXIVE)
+        {
+            if(n <= 0)
+            {
+                return newColor;
+            }
+            glm::vec3 normal = closestDrawable->getNormal(closestPoint);
+            glm::vec3 newRay = glm::reflect(direction,normal);
+            glm::vec3 reflexColor =traceRay(closestPoint,glm::normalize(newRay), n-1);
+            return (reflexColor + newColor) /2.0f;
+        }
+        else if(closestDrawable->type ==  Drawable::Type::SEMI_TRANSPARENT)
+        {
+            if(n <=0)
+            {
+                return newColor;
+            }
+            glm::vec3 normal = closestDrawable->getNormal(closestPoint);
+            glm::vec3 newRay = glm::refract(direction,normal,1/1.445f); // Air / Glass
 
-//        if(maxDist < glm::distance(_camera,point))
-//        {
-//            maxDist = glm::distance(_camera,point);
-//        }
-//        if(minDist > glm::distance(_camera,point))
-//        {
-//            minDist = glm::distance(_camera,point);
-//        }
-//    }
+            glm::vec3 refractionColor =traceRay(closestPoint,newRay, n-1,closestDrawable);
+            return  refractionColor * newColor;
 
-//    for(auto it = points.begin();it!=points.end();++it)
-//    {
-//        std::pair< std::pair<int,int>,glm::vec3> aPair = *it;
-//        std::pair<int,int> coord = aPair.first;
-//        glm::vec3 point = aPair.second;
-//        float dist = glm::distance(_camera,point);
-//        dist = (dist-minDist)/ maxDist;
-//        unsigned int rgb = vectorToRgb(glm::vec3(dist,dist,dist));
-//        this->setRGB(coord.first,coord.second,rgb);
-//    }
+        }
+        else
+        {
+            return newColor;
+        }
+    }
+    return glm::vec3(0,0,0);
+
+}
+
+void Raytracing::renderBlock(int offset, int size, bool multisample)
+{
+    for(auto i=offset;i<size;i++)
+    {
+        for(auto j=0;j<_height;j++)
+        {
+            glm::vec3 ray =  createRay(i,j, _width, _height);
+            glm::vec3 newColor = traceRay(_camera,ray,defaultRecusion);
+
+            if(multisample)
+            {
+                glm::vec3 ray1 =  createRay(i-0.5f,j+0.5f, _width, _height);
+                glm::vec3 newColor1 = traceRay(_camera,ray1,defaultRecusion);
+
+                glm::vec3 ray2 =  createRay(i+0.5f,j+0.5f, _width, _height);
+                glm::vec3 newColor2 = traceRay(_camera,ray2,defaultRecusion);
+
+                glm::vec3 ray3 =  createRay(i+0.5f,j-0.5f, _width, _height);
+                glm::vec3 newColor3 = traceRay(_camera,ray3,defaultRecusion);
+
+                glm::vec3 ray4 =  createRay(i-0.5f,j-0.5f, _width, _height);
+                glm::vec3 newColor4 = traceRay(_camera,ray4,defaultRecusion);
+
+                newColor = (newColor+newColor1+newColor2+newColor3+newColor4)/5.0f;
+            }
+
+
+            unsigned int rgb = vectorToRgb(newColor);
+            this->setRGB(i,j,rgb);
+        }
+    }
+
+
+}
+
+void Raytracing::perform()
+{
+    auto start = std::chrono::high_resolution_clock::now();
+
+    int n = numThreads;
+    int size = roundf((float)_width/n);
+
+    std::cout << size << std::endl;
+
+    std::vector<std::thread> threads;
+
+    for(int i=0;i<n;i++)
+    {
+
+        if(i<n-1)
+        {
+            threads.push_back(
+            std::thread([=]{
+                renderBlock(i*size,i*size+size, useMultisample);
+            }));
+        }
+        else
+        {
+            threads.push_back(
+            std::thread([=]{
+                renderBlock(i*size,_width, useMultisample);
+            }));
+        }
+    }
+
+    for(auto & thread : threads)
+    {
+        thread.join();
+    }
+
+    auto finish = std::chrono::high_resolution_clock::now();
+    std::cout << "Time to render: "<< std::chrono::duration_cast<std::chrono::nanoseconds>(finish-start).count()/1e+9 << " s\n";
 
 }
 

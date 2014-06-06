@@ -15,13 +15,14 @@ TEMPLATE = app
 INCLUDEPATH += glm
 
 SOURCES += main.cpp\
-        mainwindow.cpp \
     raytracing.cpp \
     drawable.cpp \
-    light.cpp
+    light.cpp \
+    raytracing_canvas.cpp
 
-HEADERS  += mainwindow.h \
+HEADERS  += \
     raytracing.h \
     drawable.h \
-    light.h
+    light.h \
+    raytracing_canvas.h
 
