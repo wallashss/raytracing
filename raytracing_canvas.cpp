@@ -2,6 +2,9 @@
 #include <QPainter>
 #include "drawable.h"
 #include "raytracing.h"
+#include <chrono> // C++ 11
+#include <iostream>
+#include <sstream>
 
 RaytracingCanvas::RaytracingCanvas(int width, int height,int numOfThreads, bool multisample, QWidget *parent) :
     QMainWindow(parent),
@@ -17,6 +20,8 @@ RaytracingCanvas::RaytracingCanvas(int width, int height,int numOfThreads, bool 
 
     Sphere *purpleSphere = new Sphere(2,"purpleSphere");
     purpleSphere->position =glm::vec3(-5,-3,20);
+
+//     purpleSphere->position =glm::vec3(5,-3.0f,5.0f);
     purpleSphere->diffuseColor = glm::vec3(1,0,1);
 
     Sphere *blueSphere = new Sphere(5,"blueSphere");
@@ -35,6 +40,8 @@ RaytracingCanvas::RaytracingCanvas(int width, int height,int numOfThreads, bool 
 
     Sphere *transparentSphere = new Sphere(2,"transparentSphere");
     transparentSphere->position =glm::vec3(-5,-3,5.0f);
+
+//    transparentSphere->position =glm::vec3(-5,2.0f,5.0f);
     transparentSphere->diffuseColor = glm::vec3(1,1,1);
     transparentSphere->specularColor = glm::vec3(1,1,1);
 
@@ -55,7 +62,7 @@ RaytracingCanvas::RaytracingCanvas(int width, int height,int numOfThreads, bool 
     floor->pointB = glm::vec3(1,-5,1);
 
     floor->color1 = Drawable::blackColor;
-    floor->color2 = Drawable::whiteColor;
+    floor->color2 = glm::vec3(1.5f,1.5f,1.5f);
     floor->tileSize = 2.5f;
 
     floor->type = Drawable::Type::REFLEXIVE;
@@ -125,8 +132,8 @@ RaytracingCanvas::RaytracingCanvas(int width, int height,int numOfThreads, bool 
     light2.color = glm::vec3(1,1,1);
 
     Light light3;
-    light3.position = glm::vec3(10,0,-10);
-    light3.color = glm::vec3(0.5,0.5,0.5);
+    light3.position = glm::vec3(0,5,0);
+    light3.color = glm::vec3(2,2,2);
 
     Light light4;
     light4.position = glm::vec3(0,10,0);
@@ -149,7 +156,14 @@ RaytracingCanvas::~RaytracingCanvas()
 }
 void RaytracingCanvas::render()
 {
+    auto start = std::chrono::high_resolution_clock::now();
     _raytracing.perform();
+    auto finish = std::chrono::high_resolution_clock::now();
+    double timeElapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(finish-start).count()/1e+9;
+    std::cout << "Time to render: "<< timeElapsed << " s\n";
+    std::stringstream stringStream;
+    stringStream << "Time to render: " << timeElapsed << " s.";
+    this->setWindowTitle(stringStream.str().c_str());
 }
 
 void RaytracingCanvas::paintEvent(QPaintEvent *)

@@ -7,9 +7,9 @@
 #include <thread>
 
 
-#define MAX_DIST 5000.0f
+#define MAX_DIST 10000.0f
 
-#include <chrono> // C++ 11
+
 
 static glm::vec3 createRay(float x, float y, int w, int h)
 {
@@ -65,73 +65,95 @@ glm::vec3 Raytracing::computeColor(glm::vec3 position, glm::vec3 viewDir, Drawab
     glm::vec3 normal = drawable->getNormal(position);
     glm::vec3 diffuseColor =drawable->getDiffuseColor(position);
 
-    glm::vec3 outColor;
+    glm::vec3 outColor(0,0,0);
+
+    glm::vec3 occludedPosition;
 
     for(Light light : lights)
     {
         bool isShadow = false;
         for(Drawable * d : drawables)
         {
-            glm::vec3 i;
             if(d->name == drawable->name)
             {
                 continue;
             }
 
-            if(d->hasIntercepted(light.position,position,i))
+            if(d->hasIntercepted(light.position,position,occludedPosition))
             {
-                if(glm::distance(light.position,i)< glm::distance(light.position,position))
+                if(glm::distance(light.position,occludedPosition)< glm::distance(light.position,position))
                 {
                     isShadow = true;
                     break;
                 }
-
             }
-        }
-        if(isShadow)
-        {
-            continue;
         }
 
         glm::vec3 lightDir = glm::normalize( light.position - position);
-        glm::vec3 ambientColor = glm::vec3(0.1,0.1,0.1) * light.color * diffuseColor;
-//        glm::vec3 viewDir = _camera - position;
-
-        float diff = fmax(0, glm::dot(normal,lightDir));
-
-        glm::vec3 reflection = glm::normalize(glm::reflect(-lightDir,normal));
-
-        float specular = fmax(0,glm::dot(reflection,glm::normalize(viewDir)));
-
-        specular = powf(specular,50);
-
         float lightDistance = glm::length(lightDir);
 
         float quadraticAttenuation=1;
         float linearAttenuation =1;
         float constantAttenuation =1;
-
         float attenuation = 1.0 / (constantAttenuation
-                                      + linearAttenuation * lightDistance
-                                      + quadraticAttenuation * lightDistance * lightDistance);
+                                   + linearAttenuation * lightDistance
+                                   + quadraticAttenuation * lightDistance * lightDistance);
 
-        outColor += ambientColor;
-        outColor += diffuseColor*diff;
-        outColor += light.color*specular*attenuation*drawable->specularColor;
+         glm::vec3 ambientColor = glm::vec3(0.1,0.1,0.1) * light.color * diffuseColor;
+        if(isShadow)
+        {
+            float occludedDistance =  glm::distance(occludedPosition,position);
+
+            float constantShadowAttenuation = 1.0f;
+            float linearShadowAttenuation =0.3f;
+            float quadraticShadowAttenuation=0.3f;
+            float shadowAttenuation = 1.0 / (constantShadowAttenuation
+                                             + linearShadowAttenuation * occludedDistance
+                                             + quadraticShadowAttenuation * occludedDistance * occludedDistance);
+
+
+            shadowAttenuation = fmin(shadowAttenuation,1);
+            glm::vec3 shadowColor = ambientColor * shadowAttenuation;
+
+            shadowColor = glm::min(ambientColor,shadowColor);
+            outColor +=  ambientColor - shadowColor;
+
+//            outColor += ambientColor;
+//            continue;
+//            continue;
+        }
+        else
+        {
+
+            float diff = fmax(0, glm::dot(normal,lightDir));
+
+            glm::vec3 reflection = glm::normalize(glm::reflect(-lightDir,normal));
+
+            float specular = fmax(0,glm::dot(reflection,glm::normalize(viewDir)));
+
+            specular = powf(specular,50);
+
+            outColor += ambientColor;
+            outColor += diffuseColor*diff;
+            outColor += light.color*specular*attenuation*drawable->specularColor;
+
+        }
+
+
 
     }
 
-//    glm::vec3  outColor = glm::vec3(specular,specular,specular);
+    //    glm::vec3  outColor = glm::vec3(specular,specular,specular);
 
     outColor.x = outColor.x <=1 ? outColor.x : 1;
     outColor.y = outColor.y <=1 ? outColor.y : 1;
     outColor.z = outColor.z <=1 ? outColor.z : 1;
 
-//    outColor = drawable->color;
+    //    outColor = drawable->color;
 
     return outColor;
 
-//    return glm::vec3(diff,diff,diff);
+    //    return glm::vec3(diff,diff,diff);
 
 }
 
@@ -207,9 +229,23 @@ glm::vec3 Raytracing::traceRay(glm::vec3 origin, glm::vec3 direction, int n, Dra
                 return newColor;
             }
             glm::vec3 normal = closestDrawable->getNormal(closestPoint);
-            glm::vec3 newRay = glm::refract(direction,normal,1/1.445f); // Air / Glass
+            //            glm::vec3 newRay = glm::refract(direction,normal,1/1.445f); // Air / Glass
+            glm::vec3 newRay = glm::refract(direction,normal,1.445f); // Air / Glass
+            glm::vec3 ap = closestPoint+newRay*0.001f;
+            glm::vec3 nap ;
+            //            if(closestDrawable->hasIntercepted(newRay,ap,nap))
+            //            {
+            //                glm::vec3 normall = closestDrawable->getNormal(nap);
+            //                std::cout << closestPoint.x << " " << closestPoint.y << " " << closestPoint.z << " -- ";
+            //                std::cout << ap.x << " " << ap.y << " " <<ap.z << " -- " ;
+            //                std::cout << nap.x << " " << nap.y << " " << nap.z << " -- " << std::endl ;
 
-            glm::vec3 refractionColor =traceRay(closestPoint,newRay, n-1,closestDrawable);
+            //                newRay = glm::refract(newRay,normall,1/1.445f);
+            //                closestPoint = ap;
+            //            }
+
+
+            glm::vec3 refractionColor =traceRay(closestPoint,glm::normalize(newRay), n-1,closestDrawable);
             return  refractionColor * newColor;
 
         }
@@ -218,12 +254,23 @@ glm::vec3 Raytracing::traceRay(glm::vec3 origin, glm::vec3 direction, int n, Dra
             return newColor;
         }
     }
+    //    std::cout << origin.x << " " << origin.y << " " <<origin.z << " -- "  ;
+    //    std::cout << direction.x << " " << direction.y << " " << direction.z << " " << std::endl;
     return glm::vec3(0,0,0);
 
 }
 
 void Raytracing::renderBlock(int offset, int size, bool multisample)
 {
+    float * r_mem = new float[2*size*2*_height];
+    float * g_mem = new float[2*size*2*_height];
+    float * b_mem = new float[2*size*2*_height];
+    for(int i=0;i<size*_height*2*2;i++)
+    {
+        r_mem[i] =-1.0f;
+        g_mem[i] =-1.0f;
+        b_mem[i] =-1.0f;
+    }
     for(auto i=offset;i<size;i++)
     {
         for(auto j=0;j<_height;j++)
@@ -233,18 +280,82 @@ void Raytracing::renderBlock(int offset, int size, bool multisample)
 
             if(multisample)
             {
-                glm::vec3 ray1 =  createRay(i-0.5f,j+0.5f, _width, _height);
-                glm::vec3 newColor1 = traceRay(_camera,ray1,defaultRecusion);
+                glm::vec3 newColor1;
+                glm::vec3 newColor2;
+                glm::vec3 newColor3;
+                glm::vec3 newColor4;
 
-                glm::vec3 ray2 =  createRay(i+0.5f,j+0.5f, _width, _height);
-                glm::vec3 newColor2 = traceRay(_camera,ray2,defaultRecusion);
+                int i0=i*2;
+                int i1=i*2+1;
 
-                glm::vec3 ray3 =  createRay(i+0.5f,j-0.5f, _width, _height);
-                glm::vec3 newColor3 = traceRay(_camera,ray3,defaultRecusion);
+                int j0=j*2;
+                int j1=j*2+1;
 
-                glm::vec3 ray4 =  createRay(i-0.5f,j-0.5f, _width, _height);
-                glm::vec3 newColor4 = traceRay(_camera,ray4,defaultRecusion);
+                int size0 = size*2;
 
+
+                if(r_mem[j0*size0+i0]<0 || g_mem[j0*size0+i0]<0 || b_mem[j0*size0+i0] <0)
+                {
+                    glm::vec3 ray1 =  createRay(i-0.5f,j-0.5f, _width, _height);
+                    newColor1 = traceRay(_camera,ray1,defaultRecusion);
+                    r_mem[j0*size0+i0] = newColor1.r;
+                    g_mem[j0*size0+i0] = newColor1.g;
+                    b_mem[j0*size0+i0] = newColor1.b;
+
+                }
+                else
+                {
+                    newColor1.r=r_mem[j0*size0+i0] ;
+                    newColor1.g=g_mem[j0*size0+i0] ;
+                    newColor1.b=b_mem[j0*size0+i0] ;
+                }
+                if(r_mem[j1*size0+i1]<0 || g_mem[j1*size0+i1]<0 || b_mem[j1*size0+i1] <0)
+                {
+                    glm::vec3 ray2 =  createRay(i+0.5f,j+0.5f, _width, _height);
+                    newColor2 = traceRay(_camera,ray2,defaultRecusion);
+                    r_mem[j1*size0+i1] = newColor2.r;
+                    g_mem[j1*size0+i1] = newColor2.g;
+                    b_mem[j1*size0+i1] = newColor2.b;
+
+                }
+                else
+                {
+                    newColor2.r=r_mem[j1*size0+i1] ;
+                    newColor2.g=g_mem[j1*size0+i1] ;
+                    newColor2.b=b_mem[j1*size0+i1] ;
+                }
+
+                if(r_mem[j0*size0+i1]<0 || g_mem[j0*size0+i1]<0 || b_mem[j0*size0+i1] <0)
+                {
+                    glm::vec3 ray3 =  createRay(i-0.5f,j+0.5f, _width, _height);
+                    newColor3 = traceRay(_camera,ray3,defaultRecusion);
+                    r_mem[j0*size0+i1] = newColor3.r;
+                    g_mem[j0*size0+i1] = newColor3.g;
+                    b_mem[j0*size0+i1] = newColor3.b;
+
+                }
+                else
+                {
+                    newColor3.r=r_mem[j0*size0+i1] ;
+                    newColor3.g=g_mem[j0*size0+i1] ;
+                    newColor3.b=b_mem[j0*size0+i1] ;
+                }
+
+                if(r_mem[j1*size0+i0]<0 || g_mem[j1*size0+i0]<0 || b_mem[j1*size0+i0] <0)
+                {
+                    glm::vec3 ray4 =  createRay(i+0.5f,j-0.5f, _width, _height);
+                    newColor4 = traceRay(_camera,ray4,defaultRecusion);
+                    r_mem[j1*size0+i0] = newColor4.r;
+                    g_mem[j1*size0+i0] = newColor4.g;
+                    b_mem[j1*size0+i0] = newColor4.b;
+
+                }
+                else
+                {
+                    newColor4.r=r_mem[j1*size0+i0] ;
+                    newColor4.g=g_mem[j1*size0+i0] ;
+                    newColor4.b=b_mem[j1*size0+i0] ;
+                }
                 newColor = (newColor+newColor1+newColor2+newColor3+newColor4)/5.0f;
             }
 
@@ -253,6 +364,9 @@ void Raytracing::renderBlock(int offset, int size, bool multisample)
             this->setRGB(i,j,rgb);
         }
     }
+    delete [] r_mem;
+    delete [] g_mem;
+    delete [] b_mem;
 
 
 }
@@ -274,14 +388,14 @@ void Raytracing::perform()
         if(i<n-1)
         {
             threads.push_back(
-            std::thread([=]{
+                        std::thread([=]{
                 renderBlock(i*size,i*size+size, useMultisample);
             }));
         }
         else
         {
             threads.push_back(
-            std::thread([=]{
+                        std::thread([=]{
                 renderBlock(i*size,_width, useMultisample);
             }));
         }
@@ -292,8 +406,7 @@ void Raytracing::perform()
         thread.join();
     }
 
-    auto finish = std::chrono::high_resolution_clock::now();
-    std::cout << "Time to render: "<< std::chrono::duration_cast<std::chrono::nanoseconds>(finish-start).count()/1e+9 << " s\n";
+
 
 }
 

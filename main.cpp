@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
     }
 
     RaytracingCanvas w(800,600,numThreads,useMultisample);
+    w.setWindowTitle("Executing raytracing");
     w.show();
     w.render();
     return a.exec();

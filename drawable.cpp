@@ -36,6 +36,8 @@ Sphere::~Sphere()
 bool Sphere::hasIntercepted(glm::vec3 ray, glm::vec3 origin, glm::vec3 & touchPoint) const
 {
 
+//    glm::vec3 n;
+//    return glm::intersectRaySphere(origin,glm::normalize(ray),position,radius,touchPoint,n);
     double rayDirX = ray.x;
     double rayDirY = ray.y;
     double rayDirZ = ray.z;
