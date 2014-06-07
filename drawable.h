@@ -9,13 +9,14 @@ class Drawable
 {
 public:
     enum class Type{
-        OPAQUE, REFLEXIVE, SEMI_TRANSPARENT
+        OPAQUE, REFLEXIVE, TRANSPARENT
     };
 
     Drawable(std::string newName = "");
     std::string name;
     static const glm::vec3 whiteColor;
     static const glm::vec3 blackColor ;
+    float refractionIndice;
     Type type;
 public:
     virtual bool hasIntercepted(glm::vec3 ray, glm::vec3 origin, glm::vec3 & touchPoint) const =0;

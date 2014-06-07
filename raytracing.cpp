@@ -118,9 +118,6 @@ glm::vec3 Raytracing::computeColor(glm::vec3 position, glm::vec3 viewDir, Drawab
             shadowColor = glm::min(ambientColor,shadowColor);
             outColor +=  ambientColor - shadowColor;
 
-//            outColor += ambientColor;
-//            continue;
-//            continue;
         }
         else
         {
@@ -152,10 +149,30 @@ glm::vec3 Raytracing::computeColor(glm::vec3 position, glm::vec3 viewDir, Drawab
     //    outColor = drawable->color;
 
     return outColor;
+}
 
-    //    return glm::vec3(diff,diff,diff);
+double schlickApproximation(double n1, double n2, glm::vec3 incident, glm::vec3 normal)
+{
+    double r0 = (n1-n2)/(n1+n2);
+    r0*=r0;
+    double cosI = -glm::dot(normal,incident);
+    double cosX =cosI;
+    if(n1>n2)
+    {
+        const double n = n1/n2;
+        const double sinT2 = n*n*(1.0 - cosI*cosI);
+        if(sinT2 >1.0)
+        {
+            // Total Internal Reflection!
+            return 1.0;
+        }
+        cosX=sqrt(1.0-sinT2);
+    }
+    const double x =1.0-cosX;
+    return r0+(1.0-r0)*x*x*x*x*x;
 
 }
+
 
 glm::vec3 Raytracing::traceRay(glm::vec3 origin, glm::vec3 direction, int n, Drawable * ignoredDrawable)
 {
@@ -222,31 +239,52 @@ glm::vec3 Raytracing::traceRay(glm::vec3 origin, glm::vec3 direction, int n, Dra
             glm::vec3 reflexColor =traceRay(closestPoint,glm::normalize(newRay), n-1);
             return (reflexColor + newColor) /2.0f;
         }
-        else if(closestDrawable->type ==  Drawable::Type::SEMI_TRANSPARENT)
+        else if(closestDrawable->type ==  Drawable::Type::TRANSPARENT)
         {
+
             if(n <=0)
             {
                 return newColor;
             }
             glm::vec3 normal = closestDrawable->getNormal(closestPoint);
-            //            glm::vec3 newRay = glm::refract(direction,normal,1/1.445f); // Air / Glass
-            glm::vec3 newRay = glm::refract(direction,normal,1.445f); // Air / Glass
-            glm::vec3 ap = closestPoint+newRay*0.001f;
-            glm::vec3 nap ;
-            //            if(closestDrawable->hasIntercepted(newRay,ap,nap))
-            //            {
-            //                glm::vec3 normall = closestDrawable->getNormal(nap);
-            //                std::cout << closestPoint.x << " " << closestPoint.y << " " << closestPoint.z << " -- ";
-            //                std::cout << ap.x << " " << ap.y << " " <<ap.z << " -- " ;
-            //                std::cout << nap.x << " " << nap.y << " " << nap.z << " -- " << std::endl ;
-
-            //                newRay = glm::refract(newRay,normall,1/1.445f);
-            //                closestPoint = ap;
-            //            }
 
 
-            glm::vec3 refractionColor =traceRay(closestPoint,glm::normalize(newRay), n-1,closestDrawable);
-            return  refractionColor * newColor;
+            float n1 =1.0f; // Air...
+            float n2 =closestDrawable->refractionIndice;
+
+            float R = schlickApproximation(n1,n2,glm::normalize(direction),normal);
+            float T = 1.0f-R;
+
+            glm::vec3 reflectedRay = glm::reflect(direction,normal);
+            glm::vec3 transmissedRay = glm::refract(direction,normal,n1/n2);
+
+
+            glm::vec3 transmissionColor;
+            glm::vec3 oppositeSideOrigin = touchPoint+ 10000.0f*transmissedRay;
+            glm::vec3 oppositeTouchPoint;
+
+            // TODO: Enter and out
+            if(closestDrawable->hasIntercepted(-transmissedRay,oppositeSideOrigin,oppositeTouchPoint) && false)
+            {
+                glm::vec3 newNormal = closestDrawable->getNormal(oppositeTouchPoint);
+                glm::vec3 newRefractedRay = glm::refract(transmissedRay,newNormal,n2/n1);
+                glm::vec3 newReflexionRay = glm::reflect(transmissedRay,newNormal);
+
+                float R1 = schlickApproximation(n2,n1,glm::normalize(newRefractedRay),newNormal);
+                float T1 = 1.0f-R;
+
+                glm::vec3 transmissionColor1=traceRay(oppositeTouchPoint,glm::normalize(newRefractedRay), n-1,closestDrawable);
+                glm::vec3 reflexionColor1=traceRay(oppositeTouchPoint,glm::normalize(newReflexionRay), n-1,closestDrawable);
+                transmissionColor = (R1*reflexionColor1)+(T1*transmissionColor1);
+            }
+            else
+            {
+                 transmissionColor=traceRay(oppositeTouchPoint,glm::normalize(transmissedRay), n-1,closestDrawable);
+            }
+
+            glm::vec3 reflexionColor =  traceRay(closestPoint,glm::normalize(reflectedRay), n-1,closestDrawable);
+
+            return  ((R*reflexionColor)+(T*transmissionColor))*newColor;
 
         }
         else
@@ -254,8 +292,6 @@ glm::vec3 Raytracing::traceRay(glm::vec3 origin, glm::vec3 direction, int n, Dra
             return newColor;
         }
     }
-    //    std::cout << origin.x << " " << origin.y << " " <<origin.z << " -- "  ;
-    //    std::cout << direction.x << " " << direction.y << " " << direction.z << " " << std::endl;
     return glm::vec3(0,0,0);
 
 }
@@ -373,7 +409,6 @@ void Raytracing::renderBlock(int offset, int size, bool multisample)
 
 void Raytracing::perform()
 {
-    auto start = std::chrono::high_resolution_clock::now();
 
     int n = numThreads;
     int size = roundf((float)_width/n);
@@ -405,8 +440,6 @@ void Raytracing::perform()
     {
         thread.join();
     }
-
-
 
 }
 

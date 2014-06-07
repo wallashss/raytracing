@@ -21,7 +21,6 @@ RaytracingCanvas::RaytracingCanvas(int width, int height,int numOfThreads, bool 
     Sphere *purpleSphere = new Sphere(2,"purpleSphere");
     purpleSphere->position =glm::vec3(-5,-3,20);
 
-//     purpleSphere->position =glm::vec3(5,-3.0f,5.0f);
     purpleSphere->diffuseColor = glm::vec3(1,0,1);
 
     Sphere *blueSphere = new Sphere(5,"blueSphere");
@@ -40,19 +39,19 @@ RaytracingCanvas::RaytracingCanvas(int width, int height,int numOfThreads, bool 
 
     Sphere *transparentSphere = new Sphere(2,"transparentSphere");
     transparentSphere->position =glm::vec3(-5,-3,5.0f);
-
-//    transparentSphere->position =glm::vec3(-5,2.0f,5.0f);
     transparentSphere->diffuseColor = glm::vec3(1,1,1);
     transparentSphere->specularColor = glm::vec3(1,1,1);
+    transparentSphere->refractionIndice =0.9f;
 
-    transparentSphere->type = Drawable::Type::SEMI_TRANSPARENT;
+    transparentSphere->type = Drawable::Type::TRANSPARENT;
 
-    Sphere *yellowSphere = new Sphere(1,"yellowSphere");
-    yellowSphere ->position =glm::vec3(-0,-4,1.0f);
+    Sphere *yellowSphere = new Sphere(1.7f,"yellowSphere");
+    yellowSphere ->position =glm::vec3(-1,-3.3f,1.0f);
     yellowSphere ->diffuseColor = glm::vec3(2,2,0);
     yellowSphere ->specularColor = glm::vec3(1,1,1);
+    yellowSphere->refractionIndice =1.4f;
 
-    yellowSphere->type = Drawable::Type::SEMI_TRANSPARENT;
+    yellowSphere->type = Drawable::Type::TRANSPARENT;
 
 
     Chess * floor = new Chess("floor");
@@ -121,6 +120,7 @@ RaytracingCanvas::RaytracingCanvas(int width, int height,int numOfThreads, bool 
     _raytracing.drawables.push_back(transparentSphere);
     _raytracing.drawables.push_back(yellowSphere);
 
+
     setFixedSize(width,height);
 
     Light light;
@@ -144,10 +144,8 @@ RaytracingCanvas::RaytracingCanvas(int width, int height,int numOfThreads, bool 
     _raytracing.lights.push_back(light3);
     _raytracing.lights.push_back(light4);
 
-    _raytracing.defaultRecusion = 5;
-
+    _raytracing.defaultRecusion = 7;
     resize(width,height);
-
 }
 
 RaytracingCanvas::~RaytracingCanvas()

@@ -14,7 +14,8 @@ const glm::vec3 Drawable::whiteColor = glm::vec3(1,1,1);
 Drawable::Drawable(std::string newName) :
     name(newName),
     type(Type::OPAQUE),
-    specularColor(glm::vec3(1,1,1))
+    specularColor(glm::vec3(1,1,1)),
+    refractionIndice(1)
 {
 
 }
